@@ -44,7 +44,8 @@ def fetch_page_content(url, referer):
         if response.status_code == 200:
             return response.text
         else:
-            return f"요청 실패: 상태 코드 {response.status_code}"
+            log.error("%s: 상태 코드(%i)", REQUEST_FAIL, response.status_code)
+            return f"{REQUEST_FAIL}: 상태 코드 {response.status_code}"
     except requests.exceptions.Timeout as e:
         log.error("%s: 요청이 시간 초과되었습니다.", REQUEST_FAIL, exc_info=True)
         return f"{REQUEST_FAIL}: 요청이 시간 초과되었습니다."
