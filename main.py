@@ -1,8 +1,10 @@
 import os
+import asyncio
 from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from notification.send_telegram import send_msg
 
 load_dotenv(override=True)
 
@@ -32,7 +34,7 @@ def fetch_page_content(url, referer):
     headers = get_default_headers(referer=referer)
 
     try:
-        response = requests.get(url, headers=headers, timeout=5, verify=False)
+        response = requests.get(url, headers=headers, timeout=5)
         response.raise_for_status()  # 상태 코드가 200이 아니면 예외 발생
         if response.status_code == 200:
             return response.text
@@ -101,7 +103,11 @@ def main():
     if len(text_list) > 0:
         for text in text_list:
             if text == "도서예약신청":
-                print(f"도서예약가능: {search_keyword}, URL: https://www.ydplib.or.kr/")
+                asyncio.run(
+                    send_msg(
+                        text=f"도서예약가능: {search_keyword}, URL: https://www.ydplib.or.kr/"
+                    )
+                )
 
 
 if __name__ == "__main__":
