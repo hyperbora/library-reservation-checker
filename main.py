@@ -1,12 +1,17 @@
 import os
 import asyncio
+from logging import Logger
 from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from notification.send_telegram import send_msg
+from utility import log_factory
 
 load_dotenv(override=True)
+cur_dir: str = os.path.dirname(os.path.realpath(__file__))
+log: Logger = log_factory.get_log(cur_dir=cur_dir)
+REQUEST_FAIL = "요청 실패"
 
 
 def get_default_headers(referer):
@@ -40,12 +45,15 @@ def fetch_page_content(url, referer):
             return response.text
         else:
             return f"요청 실패: 상태 코드 {response.status_code}"
-    except requests.exceptions.Timeout:
-        return "요청 실패: 요청이 시간 초과되었습니다."
-    except requests.exceptions.TooManyRedirects:
-        return "요청 실패: 너무 많은 리디렉션이 발생했습니다."
+    except requests.exceptions.Timeout as e:
+        log.error("%s: 요청이 시간 초과되었습니다.", REQUEST_FAIL, exc_info=True)
+        return f"{REQUEST_FAIL}: 요청이 시간 초과되었습니다."
+    except requests.exceptions.TooManyRedirects as e:
+        log.error("%s: 너무 많은 리디렉션이 발생했습니다.", REQUEST_FAIL, exc_info=True)
+        return f"{REQUEST_FAIL}: 너무 많은 리디렉션이 발생했습니다."
     except requests.exceptions.RequestException as e:
-        return f"요청 실패: {e}"
+        log.error("%s", REQUEST_FAIL, exc_info=True)
+        return f"{REQUEST_FAIL}: {e}"
 
 
 def extract_text_from_html(html_content, selector):
@@ -65,7 +73,7 @@ def main():
     search_keyword = (os.getenv("SEARCH_KEYWORD") or "").strip()
 
     if not search_keyword:
-        print("no search keyword")
+        log.info("no search keyword")
         return
     encoded_keyword = quote(search_keyword)  # 키워드를 URL 인코딩
 
@@ -94,7 +102,7 @@ def main():
 
     html_content = fetch_page_content(library_url, referer=referrer)
 
-    if "요청 실패" in html_content:
+    if REQUEST_FAIL in html_content:
         return
 
     text_list = extract_text_from_html(
@@ -103,6 +111,7 @@ def main():
     if len(text_list) > 0:
         for text in text_list:
             if text == "도서예약신청":
+                log.info("도서예약신청 가능, %s", search_keyword)
                 asyncio.run(
                     send_msg(
                         text=f"도서예약가능: {search_keyword}, URL: https://www.ydplib.or.kr/"
@@ -111,4 +120,5 @@ def main():
 
 
 if __name__ == "__main__":
+    log.info("start!")
     main()
